@@ -23,8 +23,8 @@ public class DrawMeshInstancedIndirect : MonoBehaviour
     ComputeBuffer FrustumCullResult;
     int kernelIndex;
     //Get Frustum Plane
+    
     #region GetFrustumPlane
-
     //如何获取相机视锥体6个面的信息？
     //平面方程：Ax+By+Cz+D=0
     //在Unity中，1个Vector4表示一个平面的Plane结构。Vector4的xyz分别对应法向量的x、y、z分量，和一个浮点数，数学意义代表平面上任意一点在法向量方向上的投影长度。
@@ -61,13 +61,14 @@ public class DrawMeshInstancedIndirect : MonoBehaviour
         points[3] = CenterPoint + UpVector + RightVector;//right-up
         return points;
     }
+    
     public static Vector4[] GetFrustumPlane(Camera camera)
     {
         Vector4[] planes = new Vector4[6];
         Transform camTransform = camera.transform;
         Vector3[] farPlanPoints = GetFarClipPlanePoint(camera);
         planes[0] = GetPlanebyThreePoint(camTransform.position,farPlanPoints[0],farPlanPoints[2]);//Left
-        planes[1] = GetPlanebyThreePoint(camTransform.position,farPlanPoints[1],farPlanPoints[3]);//Right
+        planes[1] = GetPlanebyThreePoint(camTransform.position,farPlanPoints[3],farPlanPoints[1]);//Right
         planes[2] = GetPlanebyThreePoint(camTransform.position,farPlanPoints[1],farPlanPoints[0]);//Bottom
         planes[3] = GetPlanebyThreePoint(camTransform.position,farPlanPoints[2],farPlanPoints[3]);//Top
         planes[4] = GetPlane(-camTransform.forward,camTransform.position + camTransform.forward * camera.nearClipPlane);//nearClipPlane
@@ -77,19 +78,15 @@ public class DrawMeshInstancedIndirect : MonoBehaviour
 
     #endregion
     
-    
 
     void Start() 
     {
         argsBuffer = new ComputeBuffer(1, args.Length * sizeof(uint), ComputeBufferType.IndirectArguments);
-        
         mainCamera = Camera.main;
         kernelIndex = computeShader.FindKernel("FrustumCulling");
         FrustumCullResult = new ComputeBuffer(instanceCount, sizeof(float)*16, ComputeBufferType.Append);
         computeShader.SetVector("boundSizeInput",boundSize);
-        
         UpdateBuffers();
-        
     }
 
     void Update() {
