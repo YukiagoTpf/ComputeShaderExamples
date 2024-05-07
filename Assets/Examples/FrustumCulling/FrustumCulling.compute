@@ -1,0 +1,53 @@
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel FrustumCulling
+
+uint instanceCount;
+float4 boundSizeInput;
+float4 FrustumPlane[6];
+StructuredBuffer<float4x4> LocalToWorldinput;
+AppendStructuredBuffer<float4x4> result;
+
+//如何判断一个点在平面内还是外？
+//先获取这个平面的平面方程，将点数值带入，= 0代表在平面上，>0代表在平面正面（也就是法向量指向的方向），< 0 代表在平面内
+bool isOutsidePoint(float4 plane , float3 pointpos)
+{
+    if (dot(plane.xyz,pointpos) + plane.w > 0)
+        return true;
+    return false;
+}
+
+[numthreads(640,1,1)]
+void FrustumCulling (uint3 id : SV_DispatchThreadID)
+{
+    if(id.x >= instanceCount)
+        return;
+    float4x4 perInstancedLToWMartix = LocalToWorldinput[id.x];
+    float4 boundSize = boundSizeInput;
+    float3 boundMin = float3(-boundSize.x/2,0,-boundSize.z/2);
+    float3 boundMax = float3(boundSize.x/2,boundSize.y,boundSize.z/2);
+    float4 boundVertexs_world[8];
+    
+    boundVertexs_world[0] = mul(perInstancedLToWMartix,float4(boundMin,1));//底面左下
+    boundVertexs_world[1] = mul(perInstancedLToWMartix,float4(boundMin.x,boundMin.y,boundMax.z,1));//底面左上
+    boundVertexs_world[2] = mul(perInstancedLToWMartix,float4(boundMax.x,boundMin.y,boundMin.z,1));//底面右下
+    boundVertexs_world[3] = mul(perInstancedLToWMartix,float4(boundMax.x,boundMin.y,boundMax.z,1));//底面右上
+    
+    boundVertexs_world[4] = mul(perInstancedLToWMartix,float4(boundMax,1));//顶面右上
+    boundVertexs_world[5] = mul(perInstancedLToWMartix,float4(boundMax.x,boundMax.y,boundMin.z,1));//顶面右下
+    boundVertexs_world[6] = mul(perInstancedLToWMartix,float4(boundMin.x,boundMax.y,boundMax.z,1));//顶面左上
+    boundVertexs_world[7] = mul(perInstancedLToWMartix,float4(boundMin.x,boundMax.y,boundMin.z,1));//顶面左下
+
+    //6个面，8个点，如果8点都在某一面外，那必在视锥体外
+    for (int i = 0; i < 6; i++)
+    {
+        for(int j = 0; j < 8; j++)
+        {
+            float3 boundPosition = boundVertexs_world[j].xyz;
+            if(!isOutsidePoint(FrustumPlane[i], boundPosition))
+                break;
+            if(j == 7)
+                return;
+        }
+    }
+    result.Append(perInstancedLToWMartix);
+}
