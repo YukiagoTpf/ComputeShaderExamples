@@ -86,7 +86,7 @@ public class HizCullingDraw : MonoBehaviour
         kernelIndex = computeShader.FindKernel("HiZFrustumCulling");
         FrustumCullResult = new ComputeBuffer(instanceCount, sizeof(float)*16, ComputeBufferType.Append);
         computeShader.SetVector("boundSizeInput",boundSize);
-        computeShader.SetInt("depthTextureSize", HiZData.HIZMapSize.x);
+        //computeShader.SetInt("depthTextureSize", HiZData.HIZMapSize.x);
         UpdateBuffers();
     }
 
@@ -95,13 +95,12 @@ public class HizCullingDraw : MonoBehaviour
         if (cachedInstanceCount != instanceCount || cachedSubMeshIndex != subMeshIndex)
             UpdateBuffers();
         Vector4[] FrustumPlane = GetFrustumPlane(mainCamera);
-        computeShader.SetTexture(kernelIndex, "hizTexture",HiZData.GetInstance().HIZ_MAP);
+        //computeShader.SetTexture(kernelIndex, "hizTexture",HiZData.GetInstance().HIZ_MAP);
         computeShader.SetBuffer(kernelIndex,"LocalToWorldinput",LToWMatrixBuffer);
         FrustumCullResult.SetCounterValue(0);
         computeShader.SetBuffer(kernelIndex,"result",FrustumCullResult);
         computeShader.SetInt("instanceCount",instanceCount);
         computeShader.SetVectorArray("FrustumPlane",FrustumPlane);
-        computeShader.SetMatrix("vpMatrix", GL.GetGPUProjectionMatrix(mainCamera.projectionMatrix, false) * mainCamera.worldToCameraMatrix);
         computeShader.Dispatch(kernelIndex,1 + instanceCount/640,1,1);
         
         instanceMaterial.SetBuffer("PerInstandedLtoW", FrustumCullResult);

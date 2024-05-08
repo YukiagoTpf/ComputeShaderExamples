@@ -12,15 +12,24 @@ public class BuildHiZMapSetting
 public class BuildHiZMapRenderFeature : ScriptableRendererFeature
 {
     public BuildHiZMapSetting Setting = new BuildHiZMapSetting();
-    BuildHizMapRenderPass m_ScriptablePass;
+    BuildHizMapRenderPass m_buildhizPass;
 
     /// <inheritdoc/>
     public override void Create()
     {
-        m_ScriptablePass = new BuildHizMapRenderPass(Setting);
+        if (m_buildhizPass == null)
+        {
+            if (!Setting.HizComputeShader)
+            {
+                Debug.LogError("missing Hiz compute shader");
+                return;
+            }
+            m_buildhizPass = new BuildHizMapRenderPass(Setting.HizComputeShader);
+        }
+        
 
         // Configures where the render pass should be injected.
-        m_ScriptablePass.renderPassEvent = RenderPassEvent.BeforeRenderingTransparents;
+        m_buildhizPass.renderPassEvent = RenderPassEvent.BeforeRenderingTransparents;
     }
 
     // Here you can inject one or multiple render passes in the renderer.
@@ -36,13 +45,23 @@ public class BuildHiZMapRenderFeature : ScriptableRendererFeature
         {
             return;
         }
-        renderer.EnqueuePass(m_ScriptablePass);
-    }
-
-    protected override void Dispose(bool disposing)
-    {
-        m_ScriptablePass.Dispose();
+        renderer.EnqueuePass(m_buildhizPass);
     }
 }
 
+public class BuildHizMapRenderPass  : ScriptableRenderPass
+{
+    private HizMap m_Hizmap;
+    public BuildHizMapRenderPass(ComputeShader computeShader)
+    {
+        this.renderPassEvent = RenderPassEvent.BeforeRenderingTransparents;
+        m_Hizmap = new HizMap(computeShader);
+    }
+
+    public override void Execute(ScriptableRenderContext context, ref RenderingData renderingData)
+    {
+        m_Hizmap.Update(context, renderingData.cameraData.camera,renderingData.cameraData.renderer.cameraDepthTargetHandle);
+    }
+
+}
 
