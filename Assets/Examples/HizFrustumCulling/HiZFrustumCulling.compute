@@ -1,6 +1,6 @@
 // Each #kernel tells which function to compile; you can have many kernels
 #pragma kernel HiZFrustumCulling
-
+#pragma kernel Copy
 uint instanceCount;
 float4 boundSizeInput;
 float4 FrustumPlane[6];
@@ -13,7 +13,7 @@ Texture2D _HizMap;
 uniform float4 _HizMapSize;
 uniform float4x4 _HizCameraMatrixVP;
 
-
+RWTexture2D<float4> TestResult; 
 //在Clip Space下，根据齐次坐标做Clipping操作
 bool IsInClipSpace(float4 clipSpacePosition)
 {
@@ -45,19 +45,18 @@ void HiZFrustumCulling (uint3 id : SV_DispatchThreadID)
     boundVerts[5] = float4(boundMin.x, boundMax.y, boundMax.z, 1);
     boundVerts[6] = float4(boundMin.x, boundMax.y, boundMin.z, 1);
     boundVerts[7] = float4(boundMin.x, boundMin.y, boundMax.z, 1);
-
     float minX = 1, minY = 1, minZ = 1, maxX = -1, maxY = -1, maxZ = -1;//NDC下新的的AABB各个参数
     //-------------------------------------------------------视椎剔除-------------------------------------------------------
     //通过mvp矩阵得到顶点的Clip Space的齐次坐标，然后在Clip Space做视椎剔除判断，所有点都不在NDC内就被剔除。
     bool isInClipSpace = false;
     for (int i = 0; i < 8; i++)
     {
-        float4 clipSpace = mul(mvpMatrix, boundVerts[i]);
-        if (!isInClipSpace && IsInClipSpace(clipSpace))
+        float4 ndcbounds = mul(mvpMatrix, boundVerts[i]);
+        if (!isInClipSpace && IsInClipSpace(ndcbounds))
             isInClipSpace = true;
 
         //计算该草ndc下的AABB
-        float3 ndc = clipSpace.xyz / clipSpace.w;
+        float3 ndc = ndcbounds.xyz / ndcbounds.w;
         if (minX > ndc.x) minX = ndc.x;
         if (minY > ndc.y) minY = ndc.y;
         if (minZ > ndc.z) minZ = ndc.z;
@@ -70,7 +69,7 @@ void HiZFrustumCulling (uint3 id : SV_DispatchThreadID)
     
     float2 uvLeftBottom = float2(minX, minY) * 0.5f + 0.5f;
     float2 uvRightTop = float2(maxX, maxY) * 0.5f + 0.5f;
-    //DirextX下NDC的z值即为深度（因为MVP变换后是反转过的，所以要取最大的那个值）
+    //DirextX下NDC的z值即为深度（因为MVP变换后是反转过的，所以要取最大的那个值）1
     float depth = maxZ;
 
     //计算应该读取哪层mipmap
@@ -98,4 +97,9 @@ void HiZFrustumCulling (uint3 id : SV_DispatchThreadID)
         return;
 
     result.Append(perInstancedLToWMartix);
+}
+[numthreads(8,8,1)]
+void Copy(uint3 id : SV_DispatchThreadID)
+{
+    TestResult[id.xy] = _HizMap[id.xy];
 }

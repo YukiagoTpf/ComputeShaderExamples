@@ -110,10 +110,7 @@ public class HizMap
 
 
         m_CommandBuffer.SetGlobalTexture(ShaderConstants.HizMap, hizMap);
-        var matrixVP = GL.GetGPUProjectionMatrix(camera.projectionMatrix, false) * camera.worldToCameraMatrix;
-        m_CommandBuffer.SetGlobalMatrix(ShaderConstants.HizCameraMatrixVP, matrixVP);
         m_CommandBuffer.SetGlobalVector(ShaderConstants.HizMapSize, new Vector4(hizMap.width, hizMap.height, hizMap.mipmapCount));
-        m_CommandBuffer.SetGlobalVector(ShaderConstants.HizCameraPosition, camera.transform.position);
         context.ExecuteCommandBuffer(m_CommandBuffer);
     }
 
@@ -127,8 +124,6 @@ public class HizMap
         public static readonly int HizMap = Shader.PropertyToID("_HizMap");
 
         public static readonly int HizMapSize = Shader.PropertyToID("_HizMapSize");
-        public static readonly int HizCameraMatrixVP = Shader.PropertyToID("_HizCameraMatrixVP");
-        public static readonly int HizCameraPosition = Shader.PropertyToID("_HizCameraPositionWS");
 
     }
 }

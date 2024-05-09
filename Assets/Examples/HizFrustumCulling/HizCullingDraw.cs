@@ -22,6 +22,9 @@ public class HizCullingDraw : MonoBehaviour
     ComputeBuffer LToWMatrixBuffer;
     ComputeBuffer FrustumCullResult;
     int kernelIndex;
+    int copyIndex;
+    private RenderTexture mRenderTexture;
+    public Material mat;
     //Get Frustum Plane
     
     #region GetFrustumPlane
@@ -84,13 +87,20 @@ public class HizCullingDraw : MonoBehaviour
         argsBuffer = new ComputeBuffer(1, args.Length * sizeof(uint), ComputeBufferType.IndirectArguments);
         mainCamera = Camera.main;
         kernelIndex = computeShader.FindKernel("HiZFrustumCulling");
+        copyIndex = computeShader.FindKernel("Copy");
+        
+        mRenderTexture = new RenderTexture(2048, 2048, 16);
+        mRenderTexture.enableRandomWrite = true;
+        mRenderTexture.Create();
+        
         FrustumCullResult = new ComputeBuffer(instanceCount, sizeof(float)*16, ComputeBufferType.Append);
         computeShader.SetVector("boundSizeInput",boundSize);
         //computeShader.SetInt("depthTextureSize", HiZData.HIZMapSize.x);
         UpdateBuffers();
     }
 
-    void Update() {
+    void Update() 
+    {
         // Update starting position buffer
         if (cachedInstanceCount != instanceCount || cachedSubMeshIndex != subMeshIndex)
             UpdateBuffers();
@@ -101,8 +111,11 @@ public class HizCullingDraw : MonoBehaviour
         computeShader.SetBuffer(kernelIndex,"result",FrustumCullResult);
         computeShader.SetInt("instanceCount",instanceCount);
         computeShader.SetVectorArray("FrustumPlane",FrustumPlane);
+        computeShader.SetMatrix("_HizCameraMatrixVP", GL.GetGPUProjectionMatrix(mainCamera.projectionMatrix, false) * mainCamera.worldToCameraMatrix);
         computeShader.Dispatch(kernelIndex,1 + instanceCount/640,1,1);
-        
+        computeShader.SetTexture(copyIndex,"TestResult",mRenderTexture);
+        computeShader.Dispatch(copyIndex, 2048 / 8, 2048 / 8, 1);
+        mat.SetTexture("_MainTex",mRenderTexture);
         instanceMaterial.SetBuffer("PerInstandedLtoW", FrustumCullResult);
         //把Culling后的数量位移一个字节Copy到argsBuffer的第二个参数
         ComputeBuffer.CopyCount(FrustumCullResult,argsBuffer,sizeof(uint));
